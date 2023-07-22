@@ -2,7 +2,7 @@
 // Created by rolando on 5/15/17.
 //
 
-#include <stdint-gcc.h>
+#include <stdint.h>
 #include "H264Decoder.h"
 #include <assert.h>
 #include <cstring>
@@ -11,11 +11,10 @@
 
 H264Decoder::H264Decoder() {
     av_log_set_callback(log_av);
-    avcodec_register_all();
 
-    av_init_packet(&av_packet);
+    av_packet = av_packet_alloc();
 
-    AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+    const AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
     assert(codec != NULL);
 
     context = avcodec_alloc_context3(codec);
@@ -54,14 +53,14 @@ H264Decoder::H264Decoder() {
 }
 
 int H264Decoder::image(uint8_t *nals, int nals_size, uint8_t *image) {
-    av_packet.data = nals;
-    av_packet.size = nals_size;
+    av_packet->data = nals;
+    av_packet->size = nals_size;
 
-    int got_frame = 0;
-    int frame_size = avcodec_decode_video2(context, frame, &got_frame, &av_packet);
+    int frame_size = avcodec_send_packet(context, av_packet);
+    int got_frame  = avcodec_receive_frame(context, frame);
 
     if (got_frame) {
-        assert(frame_size == av_packet.size);
+        assert(frame_size == av_packet->size);
         sws_scale(sws_context, (const uint8_t *const *) frame->data, frame->linesize, 0, WII_VIDEO_HEIGHT,
                   out_frame->data, out_frame->linesize);
     }
